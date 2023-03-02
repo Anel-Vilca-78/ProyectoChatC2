@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SocketsChat</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            background-color: black;
+            color: aliceblue;
+
+        }
+
+        #message_list{
+            width: 95%;
+            border-width: 2px;
+            border-color: aliceblue;
+        }
+
+        div {
+            margin: 2%;
+        }
+
+        .all_style{
+            width: 30%;
+            float: left;
+            background-color: white;
+            color: black;
+        }
+
+        .your_style{
+            width: 30%;
+            float: right;
+            background-color: aquamarine;
+            color: black;   
+        }
+
+        .all_messages {
+            display: flex;
+            justify-content: start;
+        }
+
+        .your_messages {
+            display: flex;
+            justify-content: end;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="message_list"></div>
+    <form id="message_area" action="">
+        <input id="text_area" autocomplete="off" />
+        <input id="file_area" type="file">
+        <button>Send</button>
+    </form>
+
+    <script>
+        const socket = io();
+
+        var username = window.prompt("Usuario:");
+        socket.emit('new user', username);
+
+        const messageForm = document.getElementById('message_area');
+        const textInput = document.getElementById('text_area');
+        const fileInput = document.getElementById('file_area')
+
+        messageForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (textInput.value && fileInput.value === '') {
+                if (textInput.value.substring(0, 1) === '@') {
+                    var zero = textInput.value.indexOf(' ', 0);
+                    var destiny;
+                    if (zero == -1) {
+                        destiny = textInput.value.substring(1);
+                    } else {
+                        destiny = textInput.value.substring(1, zero);
+                    }
+                    socket.emit('new message private', { msg: textInput.value, user: destiny });
+                }
+                else {
+                    console.log("publico");
+                    socket.emit('new message', textInput.value);
+                }
+                textInput.value = '';
+            } else if (fileInput.value) {
+                if (textInput.value.substring(0, 1) === '@') {
+                    var archivo = fileInput.files[0]
+                    var zero = textInput.value.indexOf(' ', 0);
+                    var destiny;
+                    if (zero == -1) {
+                        destiny = textInput.value.substring(1);
+                    } else {
+                        destiny = textInput.value.substring(1, zero);
+                    }
+                    console.log(destiny)
+                    var reader = new FileReader();
+                    var msg = textInput.value
+                    reader.readAsDataURL(archivo);
+                    reader.onloadend = function () {
+                        var base64 = reader.result;
+                        console.log("---");
+                        console.log(base64);
+                        socket.emit("new file private", { file: base64, destiny: destiny, msg: msg });
+                    }
+                } else {
+                    var archivo = fileInput.files[0];
+                    var reader = new FileReader();
+                    reader.readAsDataURL(archivo);
+                    var msg = textInput.value;
+                    reader.onloadend = function () {
+                        var base64 = reader.result;
+                        console.log("---");
+                        console.log(base64);
+                        socket.emit("new file", { file: base64, msg: msg });
+                    }
+                }
+                textInput.value = '';
+                fileInput.value = '';
+            }
+        });
+
+        socket.on('send message', (data) => {
+            const messageList = document.getElementById('message_list');
+            const chatItem = document.createElement('div');
+            const chatItem1 = document.createElement('div')
+            var origin = data.user
+            if (data.user === username) {
+                origin = 'You';
+                chatItem1.className += 'your_messages';
+                chatItem.className += 'your_style';
+            } else {
+                chatItem1.className += 'all_messages';
+                chatItem.className += 'all_style';
+            }
+            chatItem.textContent = origin + ': ' + data.message;
+            chatItem1.appendChild(chatItem)
+            messageList.appendChild(chatItem1);
+            window.scrollTo(0, document.body.scrollHeight);
+        });
+
+        socket.on('send message private', (data) => {
+            if (data.destiny === username || data.user == username) {
+                const messageList = document.getElementById('message_list');
+                const chatItem = document.createElement('div');
+                const chatItem1 = document.createElement('div')
+                var origin = data.user
+                if (data.user === username) {
+                    origin = 'You';
+                    chatItem1.className += 'your_messages';
+                    chatItem.className += 'your_style';
+                } else {
+                    chatItem1.className += 'all_messages';
+                    chatItem.className += 'all_style';
+                }
+                chatItem.textContent = origin + ': ' + data.message;
+                chatItem1.appendChild(chatItem)
+                messageList.appendChild(chatItem1);
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        });
+
+        socket.on("send file", (data) => {
+            const messageList = document.getElementById('message_list');
+            const chatItem = document.createElement('div');
+            const chatItem1 = document.createElement('div')
+                var origin = data.user
+                if (data.user === username) {
+                    origin = 'You';
+                    chatItem1.className += 'your_messages';
+                    chatItem.className += 'your_style';
+                } else {
+                    chatItem1.className += 'all_messages';
+                    chatItem.className += 'all_style';
+                }
+            chatItem.textContent = origin + ': ' + data.message;
+            chatItem.append(origin + ' : ' + data.message);
+            var img = new Image();
+            img.src = data.file;
+            var br = document.createElement('br');
+            chatItem.append(br);
+            chatItem.append(img);
+            chatItem1.appendChild(chatItem)
+            messageList.appendChild(chatItem1);
+        })
+
+        socket.on('send file private', (data) => {
+            const messageList = document.getElementById('message_list');
+            const chatItem = document.createElement('div');
+            const chatItem1 = document.createElement('div')
+                var origin = data.user
+                if (data.user === username) {
+                    origin = 'You';
+                    chatItem1.className += 'your_messages';
+                    chatItem.className += 'your_style';
+                } else {
+                    chatItem1.className += 'all_messages';
+                    chatItem.className += 'all_style';
+                }
+            chatItem.textContent = origin + ': ' + data.message;
+            var img = new Image();
+            img.src = data.file;
+            var br = document.createElement('br');
+            chatItem.append(br);
+            chatItem.append(img);
+            chatItem1.appendChild(chatItem)
+            if (data.destiny === username || data.user === username) {
+                messageList.appendChild(chatItem1);
+            }
+        });
+
+        socket.on('no register', (data) => {
+            username = window.prompt(data.message);
+            socket.emit('new user', username);
+        })
+
+        socket.on('send server message', (data) => {
+            const messageList = document.getElementById('message_list');
+            const chatItem = document.createElement('p');
+            chatItem.textContent = data.message;
+            messageList.appendChild(chatItem);
+            window.scrollTo(0, document.body.scrollHeight);
+        });
+    </script>
+
+</body>
+
+</html>
